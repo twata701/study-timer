@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="べんきょうタイマー">
+  <title>べんきょうタイマー</title>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      background: linear-gradient(135deg, #fff9e6 0%, #ffeef8 100%);
+      font-family: 'M PLUS Rounded 1c', 'Kosugi Maru', sans-serif;
+    }
+    .wrap {
+      display: flex; align-items: center; justify-content: center;
+      gap: 40px; padding: 32px 24px; min-height: 100vh;
+    }
+    .clock-section { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    .clock-section h2 { font-size: 20px; font-weight: 800; color: #ff6b9d; letter-spacing: 0.05em; }
+
+    /* アナログ時計 */
+    .clock-wrap {
+      position: relative;
+      width: 300px; height: 300px;
+    }
+    .clock-wrap canvas {
+      position: absolute; top: 0; left: 0;
+    }
+    /* 針はcanvasの中心を基準に回転 */
+    .hand {
+      position: absolute;
+      left: 50%;
+      transform-origin: 50% 100%;
+      border-radius: 4px;
+    }
+    #hand-hour {
+      width: 10px; height: 58px;
+      bottom: 50%;
+      margin-left: -5px;
+      background: #ff6b9d;
+      border-radius: 5px;
+    }
+    #hand-min {
+      width: 6px; height: 80px;
+      bottom: 50%;
+      margin-left: -3px;
+      background: #4cd97b;
+      border-radius: 3px;
+    }
+    #hand-sec {
+      width: 2px; height: 98px;
+      bottom: 50%;
+      margin-left: -1px;
+      background: #ff9f40;
+      border-radius: 2px;
+    }
+    .center-dot {
+      position: absolute;
+      width: 14px; height: 14px;
+      background: #ff6b9d;
+      border-radius: 50%;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+    }
+    .center-dot-inner {
+      position: absolute;
+      width: 6px; height: 6px;
+      background: #fff;
+      border-radius: 50%;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 11;
+    }
+
+    .timer-section {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 20px;
+      background: #fff; border-radius: 28px; padding: 28px 32px;
+      border: 3px solid #ffcce8; min-width: 280px; box-shadow: 0 5px 0 #ffb3d9;
+    }
+    .timer-section h2 { font-size: 20px; font-weight: 800; color: #ff6b9d; letter-spacing: 0.05em; align-self: center; }
+    .btn-row { display: flex; gap: 14px; width: 100%; }
+    .btn {
+      flex: 1; padding: 16px 8px; border: none; border-radius: 18px;
+      font-family: inherit; font-size: 20px; font-weight: 800; cursor: pointer; white-space: nowrap;
+      transition: transform 0.1s, box-shadow 0.1s; letter-spacing: 0.05em;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(0.95) translateY(3px); box-shadow: none !important; }
+    .btn-start { background: #4cd97b; color: #fff; box-shadow: 0 5px 0 #2ab55a; }
+    .btn-end   { background: #ff6b9d; color: #fff; box-shadow: 0 5px 0 #e04880; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+    .info-card { width: 100%; background: #fff9f0; border-radius: 16px; padding: 12px 16px; border: 2px solid #ffd9a0; }
+    .info-label { font-size: 14px; font-weight: 700; color: #ff9f40; letter-spacing: 0.05em; }
+    .info-value { font-size: 26px; font-weight: 800; color: #333; min-height: 34px; display: flex; align-items: baseline; gap: 4px; }
+    .info-value .placeholder { color: #ccc; font-size: 22px; }
+    .elapsed-card { width: 100%; background: #f0f8ff; border-radius: 16px; padding: 12px 16px; border: 2px solid #a0d4ff; }
+    .elapsed-label { font-size: 14px; font-weight: 700; color: #4da6ff; letter-spacing: 0.05em; }
+    .elapsed-value { font-size: 32px; font-weight: 800; color: #4da6ff; min-height: 40px; display: flex; align-items: baseline; gap: 4px; }
+    .elapsed-value .placeholder { color: #b3d9ff; font-size: 28px; }
+    .unit { font-size: 16px; font-weight: 700; color: #888; }
+    @media (max-width: 700px) {
+      .wrap { flex-direction: column; gap: 24px; padding: 24px 16px; }
+      .timer-section { width: 100%; max-width: 400px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="clock-section">
+    <h2>🕐 いまのじかん</h2>
+    <div class="clock-wrap">
+      <canvas id="clock" width="300" height="300"></canvas>
+      <div id="hand-hour"  class="hand"></div>
+      <div id="hand-min"   class="hand"></div>
+      <div id="hand-sec"   class="hand"></div>
+      <div class="center-dot"></div>
+      <div class="center-dot-inner"></div>
+    </div>
+  </div>
+  <div class="timer-section">
+    <h2>⏱ べんきょうタイマー</h2>
+    <div class="btn-row">
+      <button class="btn btn-start" id="btnStart">はじめる</button>
+      <button class="btn btn-end"   id="btnEnd"   disabled>おわる</button>
+    </div>
+    <div class="info-card">
+      <div class="info-label">📖 はじめたじかん</div>
+      <div class="info-value" id="startTime"><span class="placeholder">－</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-label">✏️ おわったじかん</div>
+      <div class="info-value" id="endTime"><span class="placeholder">－</span></div>
+    </div>
+    <div class="elapsed-card">
+      <div class="elapsed-label">🌟 かかったじかん</div>
+      <div class="elapsed-value" id="elapsed"><span class="placeholder">－</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById('clock');
+  const ctx = canvas.getContext('2d');
+  const W = 300, H = 300, CX = W/2, CY = H/2;
+
+  // 文字盤を一度だけ描画
+  function drawFace() {
+    // outer ring
+    ctx.beginPath(); ctx.arc(CX, CY, 148, 0, 2*Math.PI);
+    ctx.fillStyle = '#fff0fa'; ctx.fill();
+    ctx.strokeStyle = '#ffb3d9'; ctx.lineWidth = 3; ctx.stroke();
+    // inner face
+    ctx.beginPath(); ctx.arc(CX, CY, 116, 0, 2*Math.PI);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.strokeStyle = '#ffcce8'; ctx.lineWidth = 2; ctx.stroke();
+    // tick marks 1-60
+    for (let i = 1; i <= 60; i++) {
+      const a = (i / 60) * 2 * Math.PI - Math.PI / 2;
+      const isMaj = (i % 5 === 0);
+      ctx.beginPath();
+      ctx.moveTo(CX + 148 * Math.cos(a), CY + 148 * Math.sin(a));
+      ctx.lineTo(CX + (isMaj ? 131 : 138) * Math.cos(a), CY + (isMaj ? 131 : 138) * Math.sin(a));
+      ctx.strokeStyle = isMaj ? '#ff9fd9' : '#ffd4ee';
+      ctx.lineWidth = isMaj ? 2.5 : 1.5;
+      ctx.stroke();
+    }
+    // outer numbers 5,10,...60
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let i = 5; i <= 60; i += 5) {
+      const a = (i / 60) * 2 * Math.PI - Math.PI / 2;
+      ctx.font = 'bold 11px "M PLUS Rounded 1c", sans-serif';
+      ctx.fillStyle = '#ff9fd9';
+      ctx.fillText(String(i), CX + 123 * Math.cos(a), CY + 123 * Math.sin(a));
+    }
+    // hour numbers 1-12
+    for (let i = 1; i <= 12; i++) {
+      const a = (i / 12) * 2 * Math.PI - Math.PI / 2;
+      ctx.font = 'bold 18px "M PLUS Rounded 1c", sans-serif';
+      ctx.fillStyle = '#ff6b9d';
+      ctx.fillText(String(i), CX + 95 * Math.cos(a), CY + 95 * Math.sin(a));
+    }
+  }
+  drawFace();
+
+  // 参考コードのJST取得ロジックをそのまま使用
+  function tick() {
+    const now = new Date(Date.now() + ((new Date().getTimezoneOffset() + (9 * 60)) * 60 * 1000));
+    const h = now.getHours();
+    const m = now.getMinutes();
+    const s = now.getSeconds();
+    // 度数で計算（参考コードそのまま）
+    const hourDeg   = h * 30 + m * 0.5 + s * 0.00833333333;
+    const minuteDeg = m * 6 + s * 0.1;
+    const secondDeg = s * 6;
+    document.getElementById('hand-hour').style.transform = `rotate(${hourDeg}deg)`;
+    document.getElementById('hand-min').style.transform  = `rotate(${minuteDeg}deg)`;
+    document.getElementById('hand-sec').style.transform  = `rotate(${secondDeg}deg)`;
+  }
+
+  tick();
+  setInterval(tick, 100);
+
+  // タイマー部分
+  let startDate = null;
+
+  function getJST() {
+    return new Date(Date.now() + ((new Date().getTimezoneOffset() + (9 * 60)) * 60 * 1000));
+  }
+
+  function renderTime(elId, jst) {
+    const el = document.getElementById(elId);
+    if (!jst) { el.innerHTML = '<span class="placeholder">－</span>'; return; }
+    const h = jst.getHours();
+    const m = jst.getMinutes();
+    el.innerHTML = `<span>${h}</span><span class="unit">じ</span><span>${m}</span><span class="unit">ふん</span>`;
+  }
+
+  document.getElementById('btnStart').addEventListener('click', function() {
+    startDate = new Date();
+    renderTime('startTime', getJST());
+    document.getElementById('endTime').innerHTML = '<span class="placeholder">－</span>';
+    document.getElementById('elapsed').innerHTML = '<span class="placeholder">－</span>';
+    this.disabled = true;
+    document.getElementById('btnEnd').disabled = false;
+  });
+  document.getElementById('btnEnd').addEventListener('click', function() {
+    const endJST = getJST();
+    renderTime('endTime', endJST);
+    const diffMin = Math.floor((new Date() - startDate) / 60000);
+    document.getElementById('elapsed').innerHTML =
+      `<span>${diffMin}</span><span class="unit" style="color:#4da6ff;font-size:20px;">ふん</span>`;
+    document.getElementById('btnStart').disabled = false;
+    this.disabled = true;
+  });
+})();
+</script>
+</body>
+</html>
