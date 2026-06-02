@@ -222,6 +222,7 @@
 
   // タイマー部分
   let startDate = null;
+  let elapsedTimer = null;
 
   function getJST() {
     return new Date(Date.now() + ((new Date().getTimezoneOffset() + (9 * 60)) * 60 * 1000));
@@ -230,20 +231,33 @@
   function renderTime(elId, jst) {
     const el = document.getElementById(elId);
     if (!jst) { el.innerHTML = '<span class="placeholder">－</span>'; return; }
-    const h = jst.getHours();
+    const h24 = jst.getHours();
+    const h = h24 % 12 || 12;
     const m = jst.getMinutes();
     el.innerHTML = `<span>${h}</span><span class="unit">じ</span><span>${m}</span><span class="unit">ふん</span>`;
+  }
+
+  function updateElapsedLive() {
+    const diffSec = Math.floor((new Date() - startDate) / 1000);
+    const m = Math.floor(diffSec / 60);
+    const s = diffSec % 60;
+    const pad = s < 10 ? '0' : '';
+    document.getElementById('elapsed').innerHTML =
+      `<span style="color:#bbb">${m}</span><span class="unit" style="color:#bbb;font-size:20px;">ふん</span><span style="color:#bbb;font-size:22px;">${pad}${s}</span><span class="unit" style="color:#bbb;font-size:20px;">びょう</span>`;
   }
 
   document.getElementById('btnStart').addEventListener('click', function() {
     startDate = new Date();
     renderTime('startTime', getJST());
     document.getElementById('endTime').innerHTML = '<span class="placeholder">－</span>';
-    document.getElementById('elapsed').innerHTML = '<span class="placeholder">－</span>';
+    updateElapsedLive();
+    elapsedTimer = setInterval(updateElapsedLive, 1000);
     this.disabled = true;
     document.getElementById('btnEnd').disabled = false;
   });
   document.getElementById('btnEnd').addEventListener('click', function() {
+    clearInterval(elapsedTimer);
+    elapsedTimer = null;
     const endJST = getJST();
     renderTime('endTime', endJST);
     const diffMin = Math.floor((new Date() - startDate) / 60000);
