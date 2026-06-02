@@ -38,14 +38,14 @@
       border-radius: 4px;
     }
     #hand-hour {
-      width: 10px; height: 58px;
+      width: 10px; height: 70px;
       bottom: 50%;
       margin-left: -5px;
       background: #ff6b9d;
       border-radius: 5px;
     }
     #hand-min {
-      width: 6px; height: 80px;
+      width: 6px; height: 100px;
       bottom: 50%;
       margin-left: -3px;
       background: #4cd97b;
@@ -159,6 +159,20 @@
     ctx.beginPath(); ctx.arc(CX, CY, 116, 0, 2*Math.PI);
     ctx.fillStyle = '#fff'; ctx.fill();
     ctx.strokeStyle = '#ffcce8'; ctx.lineWidth = 2; ctx.stroke();
+    // inner minute ticks (inside the inner circle)
+    for (let i = 1; i <= 60; i++) {
+      const a = (i / 60) * 2 * Math.PI - Math.PI / 2;
+      const isMaj5  = (i % 5 === 0);
+      const isMaj15 = (i % 15 === 0);
+      const outerR = 113;
+      const innerR = isMaj15 ? 99 : isMaj5 ? 103 : 107;
+      ctx.beginPath();
+      ctx.moveTo(CX + outerR * Math.cos(a), CY + outerR * Math.sin(a));
+      ctx.lineTo(CX + innerR * Math.cos(a), CY + innerR * Math.sin(a));
+      ctx.strokeStyle = isMaj5 ? '#ff9fd9' : '#ffd4ee';
+      ctx.lineWidth = isMaj5 ? 2 : 1;
+      ctx.stroke();
+    }
     // tick marks 1-60
     for (let i = 1; i <= 60; i++) {
       const a = (i / 60) * 2 * Math.PI - Math.PI / 2;
@@ -183,7 +197,7 @@
       const a = (i / 12) * 2 * Math.PI - Math.PI / 2;
       ctx.font = 'bold 18px "M PLUS Rounded 1c", sans-serif';
       ctx.fillStyle = '#ff6b9d';
-      ctx.fillText(String(i), CX + 95 * Math.cos(a), CY + 95 * Math.sin(a));
+      ctx.fillText(String(i), CX + 88 * Math.cos(a), CY + 88 * Math.sin(a));
     }
   }
   drawFace();
