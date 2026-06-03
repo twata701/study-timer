@@ -220,6 +220,44 @@
   tick();
   setInterval(tick, 100);
 
+  // Wake Lock（画面ロック防止）
+  let wakeLock = null;
+  let wakeLockReleaseTimer = null;
+  const WAKE_LOCK_MAX_MS = 20 * 60 * 1000; // 最大20分
+
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      // 既存のタイマーをクリア
+      if (wakeLockReleaseTimer) { clearTimeout(wakeLockReleaseTimer); wakeLockReleaseTimer = null; }
+      // 既存のロックを解放してから再取得
+      if (wakeLock) { await wakeLock.release(); wakeLock = null; }
+      wakeLock = await navigator.wakeLock.request('screen');
+      // 最大20分で自動解放
+      wakeLockReleaseTimer = setTimeout(releaseWakeLock, WAKE_LOCK_MAX_MS);
+    } catch (e) { /* Wake Lock非対応または拒否された場合は無視 */ }
+  }
+
+  async function releaseWakeLockAfter(ms) {
+    if (wakeLockReleaseTimer) { clearTimeout(wakeLockReleaseTimer); wakeLockReleaseTimer = null; }
+    // 残り時間と指定時間の短い方で解放
+    const remaining = startDate ? (WAKE_LOCK_MAX_MS - (new Date() - startDate)) : ms;
+    const delay = Math.min(ms, Math.max(remaining, 0));
+    wakeLockReleaseTimer = setTimeout(releaseWakeLock, delay);
+  }
+
+  async function releaseWakeLock() {
+    if (wakeLockReleaseTimer) { clearTimeout(wakeLockReleaseTimer); wakeLockReleaseTimer = null; }
+    if (wakeLock) { await wakeLock.release(); wakeLock = null; }
+  }
+
+  // ページ復帰時にWake Lockを再取得
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && elapsedTimer && !wakeLock) {
+      await requestWakeLock();
+    }
+  });
+
   // タイマー部分
   let startDate = null;
   let elapsedTimer = null;
@@ -246,7 +284,7 @@
       `<span style="color:#bbb">${m}</span><span class="unit" style="color:#bbb;font-size:20px;">ふん</span><span style="color:#bbb;font-size:22px;">${pad}${s}</span><span class="unit" style="color:#bbb;font-size:20px;">びょう</span>`;
   }
 
-  document.getElementById('btnStart').addEventListener('click', function() {
+  document.getElementById('btnStart').addEventListener('click', async function() {
     startDate = new Date();
     renderTime('startTime', getJST());
     document.getElementById('endTime').innerHTML = '<span class="placeholder">－</span>';
@@ -254,8 +292,9 @@
     elapsedTimer = setInterval(updateElapsedLive, 1000);
     this.disabled = true;
     document.getElementById('btnEnd').disabled = false;
+    await requestWakeLock(); // 画面ロック防止を開始
   });
-  document.getElementById('btnEnd').addEventListener('click', function() {
+  document.getElementById('btnEnd').addEventListener('click', async function() {
     clearInterval(elapsedTimer);
     elapsedTimer = null;
     const endJST = getJST();
@@ -265,6 +304,7 @@
       `<span>${diffMin}</span><span class="unit" style="color:#4da6ff;font-size:20px;">ふん</span>`;
     document.getElementById('btnStart').disabled = false;
     this.disabled = true;
+    await releaseWakeLockAfter(60 * 1000); // 終了後1分間はロック防止を継続
   });
 })();
 </script>
